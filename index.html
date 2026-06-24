@@ -145,7 +145,7 @@
                     <p class="text-gray-400 text-center py-2 italic">Silakan klik "Pilih Nota" pada tabel di bawah</p>
                 </div>
                 <div class="space-y-1 text-right text-[11px]">
-                    <div class="flex justify-between"><span>Total Transaksi:</span><span id="notaTotal" class="font-bold text-maroon">Rp 0</span></div>
+                    <div class="flex justify-between"><span>Total Belanja:</span><span id="notaTotal" class="font-bold text-maroon">Rp 0</span></div>
                 </div>
                 <div class="text-center border-t border-dashed pt-2 text-[10px] text-gray-500 italic">
                     <p>Terima Kasih Telah Berbelanja!</p>
@@ -210,6 +210,7 @@
     </main>
 
     <script>
+        // MASUKKAN LINK URL WEB APP APPS SCRIPT KAMU DI BAWAH INI
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyu7D0EzL5c91qoYEIKtUYjZD5icjiAQQITxlfhAMWoCByPsDtyoyyl7BsIX4oMnVmv/exec";
 
         let dbProduk = [];
@@ -219,19 +220,21 @@
         let grandTotal = 0;
 
         function ambilStokProdukSpreadsheet() {
+            // Ambil katalog data produk
             fetch(SCRIPT_URL, {
                 method: "POST",
                 body: JSON.stringify({ action: "getProduk" })
             })
             .then(res => res.json())
             .then(res => {
-                if(res.status === "success" || res.data) {
-                    dbProduk = res.data || res;
+                if(res.status === "success" && res.data) {
+                    dbProduk = res.data;
                     tampilkanKatalog(dbProduk);
                     bangunOpsiRestock();
                 }
             }).catch(err => console.log("Gagal ambil produk:", err));
             
+            // Ambil riwayat jurnal transaksi (Menggunakan POST action: getRiwayat)
             fetch(SCRIPT_URL, {
                 method: "POST",
                 body: JSON.stringify({ action: "getRiwayat" })
@@ -240,16 +243,12 @@
             .then(res => {
                 if(res.status === "success" && res.data) {
                     jurnalTransaksi = res.data;
-                } else if(Array.isArray(res)) {
-                    jurnalTransaksi = res;
-                } else if(res.riwayat && Array.isArray(res.riwayat)) {
-                    jurnalTransaksi = res.riwayat;
+                    muatTabelRiwayat();
                 }
-                muatTabelRiwayat();
             })
             .catch(err => {
                 console.log("Gagal ambil riwayat:", err);
-                document.getElementById('bodyTabelRiwayat').innerHTML = `<tr><td colspan="6" class="text-center py-4 text-red-500">Gagal memuat data dari cloud. Hubungkan ulang Apps Script.</td></tr>`;
+                document.getElementById('bodyTabelRiwayat').innerHTML = `<tr><td colspan="6" class="text-center py-4 text-red-500 font-semibold">Gagal memuat riwayat data dari cloud. Hubungkan ulang Apps Script.</td></tr>`;
             });
         }
 
@@ -260,17 +259,17 @@
             arrayData.forEach(p => {
                 container.innerHTML += `
                     <div class="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md border border-orange-50/60 transition flex flex-col justify-between">
-                        <img src="${p.gambar || p[4] || 'https://placehold.co/300x200?text=No+Image'}" class="w-full h-28 object-cover">
+                        <img src="${p.gambar || 'https://via.placeholder.com/150'}" class="w-full h-28 object-cover">
                         <div class="p-3 flex-1 flex flex-col justify-between space-y-2">
                             <div>
-                                <h4 class="font-bold text-xs text-slate-800 line-clamp-2">${p.nama || p[1]}</h4>
-                                <p class="text-[10px] text-gray-400 mt-0.5">Kode: ${p.kode || p[0]}</p>
+                                <h4 class="font-bold text-xs text-slate-800 line-clamp-2">${p.nama}</h4>
+                                <p class="text-[10px] text-gray-400 mt-0.5">Kode: ${p.kode}</p>
                             </div>
                             <div class="flex justify-between items-center pt-1 border-t border-gray-50">
-                                <span class="text-[11px] text-amber-800 font-semibold bg-amber-50 px-1.5 py-0.5 rounded">Stok: ${p.stok || p[3]}</span>
-                                <span class="text-xs font-bold text-maroon">Rp ${(p.harga || p[2]).toLocaleString('id-ID')}</span>
+                                <span class="text-[11px] text-amber-800 font-semibold bg-amber-50 px-1.5 py-0.5 rounded">Stok: ${p.stok}</span>
+                                <span class="text-xs font-bold text-maroon">Rp ${(p.harga).toLocaleString('id-ID')}</span>
                             </div>
-                            <button onclick="masukkanKeranjang('${p.nama || p[1]}')" class="w-full bg-maroon text-white text-[11px] py-2 rounded-xl font-medium hover-maroon transition flex items-center justify-center gap-1">
+                            <button onclick="masukkanKeranjang('${p.nama}')" class="w-full bg-maroon text-white text-[11px] py-2 rounded-xl font-medium hover-maroon transition flex items-center justify-center gap-1">
                                 <i class="fas fa-plus text-[9px]"></i> Tambah
                             </button>
                         </div>
@@ -289,19 +288,13 @@
             }
 
             jurnalTransaksi.forEach((t, index) => {
-                const waktu = t.waktu || t[0] || '-';
-                const id = t.id || t.idTransaksi || t[1] || '-';
-                const deskripsi = t.deskripsi || t.items || t[2] || '-';
-                const total = t.total || t.totalBayar || t[3] || 0;
-                const metode = t.metode || t[4] || 'Tunai';
-
                 tbody.innerHTML += `
                     <tr class="hover:bg-gray-50/80 transition border-b border-gray-100">
-                        <td class="p-3">${waktu}</td>
-                        <td class="p-3 font-semibold text-slate-700">${id}</td>
-                        <td class="p-3 truncate max-w-[160px]">${deskripsi}</td>
-                        <td class="p-3 font-bold text-slate-800">Rp ${parseInt(total).toLocaleString('id-ID')}</td>
-                        <td class="p-3"><span class="px-2 py-0.5 text-[10px] rounded-full bg-red-50 text-maroon font-medium border border-red-100">${metode}</span></td>
+                        <td class="p-3">${t.waktu}</td>
+                        <td class="p-3 font-semibold text-slate-700">${t.idTransaksi}</td>
+                        <td class="p-3 truncate max-w-[200px]" title="${t.nama}">${t.nama}</td>
+                        <td class="p-3 font-bold text-slate-800">Rp ${parseInt(t.total).toLocaleString('id-ID')}</td>
+                        <td class="p-3"><span class="px-2 py-0.5 text-[10px] rounded-full bg-red-50 text-maroon font-medium border border-red-100">${t.metode}</span></td>
                         <td class="p-3">
                             <button onclick="siapkanNotaLama(${index})" class="bg-maroon text-white text-[10px] font-bold px-3 py-1 rounded-xl shadow hover-maroon transition flex items-center gap-1">
                                 <i class="fas fa-check-circle"></i> Pilih Nota
@@ -316,21 +309,16 @@
             const t = jurnalTransaksi[idx];
             dataNotaTerpilih = t;
             
-            const waktu = t.waktu || t[0] || '-';
-            const id = t.id || t.idTransaksi || t[1] || '-';
-            const deskripsi = t.deskripsi || t[2] || '-';
-            const total = t.total || t[3] || 0;
-            const metode = t.metode || t[4] || 'Tunai';
-
-            document.getElementById('notaWaktu').innerText = "Waktu: " + waktu;
-            document.getElementById('notaID').innerText = "Nota: " + id;
-            document.getElementById('notaMetode').innerText = "Metode: " + metode;
-            document.getElementById('notaTotal').innerText = "Rp " + parseInt(total).toLocaleString('id-ID');
+            document.getElementById('notaWaktu').innerText = "Waktu: " + t.waktu;
+            document.getElementById('notaID').innerText = "Nota: " + t.idTransaksi;
+            document.getElementById('notaMetode').innerText = "Metode: " + t.metode;
+            document.getElementById('notaTotal').innerText = "Rp " + parseInt(t.total).toLocaleString('id-ID');
 
             const containerItems = document.getElementById('notaItems');
             containerItems.innerHTML = "";
             
-            const itemsSplit = deskripsi.split(", ");
+            // Memisahkan produk list berdasarkan koma
+            const itemsSplit = t.nama.split(", ");
             itemsSplit.forEach(item => {
                 containerItems.innerHTML += `
                     <div class="flex justify-between py-1 border-b border-gray-50 text-[11px]">
@@ -352,10 +340,7 @@
             if(!dropdown) return;
             dropdown.innerHTML = "";
             dbProduk.forEach(p => {
-                const kode = p.kode || p[0];
-                const nama = p.nama || p[1];
-                const stok = p.stok || p[3];
-                dropdown.innerHTML += `<option value="${kode}">${nama} (Stok: ${stok})</option>`;
+                dropdown.innerHTML += `<option value="${p.kode}">${p.nama} (Stok: ${p.stok})</option>`;
             });
             isiDefaultStokRestock();
         }
@@ -364,41 +349,15 @@
             const dropdown = document.getElementById('restockPilihProduk');
             if(!dropdown || !dropdown.value) return;
             const kodeSelected = dropdown.value;
-            const produk = dbProduk.find(p => (p.kode || p[0]) === kodeSelected);
-            if(produk) document.getElementById('restockJumlahStok').value = produk.stok || produk[3];
-        }
-
-        function simpanRestokKeSpreadsheet() {
-            const kode = document.getElementById('restockPilihProduk').value;
-            const stokBaru = parseInt(document.getElementById('restockJumlahStok').value);
-            if(isNaN(stokBaru) || stokBaru < 0) return alert("Jumlah stok tidak valid!");
-
-            document.getElementById('statusSistem').innerText = "Memperbarui Stok...";
-            document.getElementById('statusSistem').className = "text-xs bg-amber-600 font-semibold px-4 py-1.5 rounded-full animate-pulse";
-
-            fetch(SCRIPT_URL, {
-                method: "POST",
-                body: JSON.stringify({ action: "updateStokManual", kodeProduk: kode, stokBaru: stokBaru })
-            })
-            .then(res => res.json())
-            .then(res => {
-                if(res.status === "success") {
-                    alert("Sukses mengupdate stok!");
-                    ambilStokProdukSpreadsheet();
-                    pindahHalaman('home');
-                }
-            })
-            .finally(() => {
-                document.getElementById('statusSistem').className = "text-xs bg-emerald-600 font-semibold px-4 py-1.5 rounded-full text-white";
-                document.getElementById('statusSistem').innerHTML = `<span class="w-2 h-2 rounded-full bg-white animate-ping"></span> Terhubung ke Spreadsheet`;
-            });
+            const produk = dbProduk.find(p => p.kode === kodeSelected);
+            if(produk) document.getElementById('restockJumlahStok').value = p.stok;
         }
 
         function masukkanKeranjang(nama) {
-            const produk = dbProduk.find(p => (p.nama || p[1]) === nama);
+            const produk = dbProduk.find(p => p.nama === nama);
             const ada = keranjangPOS.find(k => k.nama === nama);
-            const stokAsli = produk.stok || produk[3];
-            const hargaAsli = produk.harga || produk[2];
+            const stokAsli = produk.stok;
+            const hargaAsli = produk.harga;
 
             if(ada) {
                 if(ada.jumlah >= stokAsli) return alert("Stok maksimal produk tercapai!");
@@ -411,8 +370,8 @@
 
         function modifQty(nama, delta) {
             const item = keranjangPOS.find(k => k.nama === nama);
-            const produk = dbProduk.find(p => (p.nama || p[1]) === nama);
-            const stokAsli = produk.stok || produk[3];
+            const produk = dbProduk.find(p => p.nama === nama);
+            const stokAsli = produk.stok;
             item.jumlah += delta;
             if(item.jumlah > stokAsli) { alert("Stok barang habis!"); item.jumlah = stokAsli; }
             if(item.jumlah <= 0) keranjangPOS = keranjangPOS.filter(k => k.nama !== nama);
@@ -460,10 +419,7 @@
 
         function cariProdukRealtime() {
             const kataKunci = document.getElementById('searchBar').value.toLowerCase();
-            const filter = dbProduk.filter(p => {
-                const nama = (p.nama || p[1] || '').toLowerCase();
-                return nama.includes(kataKunci);
-            });
+            const filter = dbProduk.filter(p => p.nama.toLowerCase().includes(kataKunci));
             tampilkanKatalog(filter);
         }
 
@@ -505,7 +461,7 @@
             document.getElementById('page-keuangan').classList.add('hidden');
             document.getElementById('page-' + id).classList.remove('hidden');
             
-            if(id === 'riwayat') {
+            if(id === 'riwayat' || id === 'home') {
                 ambilStokProdukSpreadsheet();
             }
             toggleSidebar();
