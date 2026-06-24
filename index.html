@@ -210,6 +210,7 @@
     </main>
 
     <script>
+        // KUNCI PENTING: Ganti URL di bawah ini dengan URL Web App milikmu jika berubah
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyu7D0EzL5c91qoYEIKtUYjZD5icjiAQQITxlfhAMWoCByPsDtyoyyl7BsIX4oMnVmv/exec";
 
         let dbProduk = [];
@@ -285,192 +286,16 @@
             }
 
             jurnalTransaksi.forEach((t, index) => {
+                // Tampilan deskripsi tabel dibersihkan dari pemisah "|" agar enak dibaca di luar nota
+                const cleanDesc = t.nama.split(" | ").join(", ");
                 tbody.innerHTML += `
                     <tr class="hover:bg-gray-50/80 transition border-b border-gray-100">
                         <td class="p-3">${t.waktu}</td>
                         <td class="p-3 font-semibold text-slate-700">${t.idTransaksi}</td>
-                        <td class="p-3 truncate max-w-[200px]" title="${t.nama}">${t.nama}</td>
+                        <td class="p-3 truncate max-w-[200px]" title="${cleanDesc}">${cleanDesc}</td>
                         <td class="p-3 font-bold text-slate-800">Rp ${parseInt(t.total).toLocaleString('id-ID')}</td>
                         <td class="p-3"><span class="px-2 py-0.5 text-[10px] rounded-full bg-red-50 text-maroon font-medium border border-red-100">${t.metode}</span></td>
                         <td class="p-3">
                             <button onclick="siapkanNotaLama(${index})" class="bg-maroon text-white text-[10px] font-bold px-3 py-1 rounded-xl shadow hover-maroon transition flex items-center gap-1">
                                 <i class="fas fa-check-circle"></i> Pilih Nota
                             </button>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-
-        // FIX TOTAL BARIS RINCIAN NOTA JANGAN SAMPAI KOSONG
-        function siapkanNotaLama(idx) {
-            const t = jurnalTransaksi[idx];
-            dataNotaTerpilih = t;
-            
-            document.getElementById('notaWaktu').innerText = "Waktu: " + t.waktu;
-            document.getElementById('notaID').innerText = "Nota: " + t.idTransaksi;
-            document.getElementById('notaMetode').innerText = "Metode: " + t.metode;
-            document.getElementById('notaTotal').innerText = "Rp " + parseInt(t.total).toLocaleString('id-ID');
-
-            const containerItems = document.getElementById('notaItems');
-            containerItems.innerHTML = "";
-            
-            // Memecah teks rincian produk gabungan ("Kopi (x2), Teh (x1)") menjadi elemen per baris nota
-            const itemsSplit = t.nama.split(", ");
-            itemsSplit.forEach(item => {
-                containerItems.innerHTML += `
-                    <div class="flex justify-between py-1 border-b border-gray-50 text-[11px]">
-                        <span>${item}</span>
-                    </div>
-                `;
-            });
-
-            document.getElementById('areaNotaCetak').scrollIntoView({ behavior: 'smooth' });
-        }
-
-        function cetakNotaDigital() {
-            if(!dataNotaTerpilih) return alert("Silakan klik tombol 'Pilih Nota' terlebih dahulu pada daftar tabel transaksi di bawah!");
-            window.print();
-        }
-
-        function bangunOpsiRestock() {
-            const dropdown = document.getElementById('restockPilihProduk');
-            if(!dropdown) return;
-            dropdown.innerHTML = "";
-            dbProduk.forEach(p => {
-                dropdown.innerHTML += `<option value="${p.kode}">${p.nama} (Stok: ${p.stok})</option>`;
-            });
-            isiDefaultStokRestock();
-        }
-
-        function isiDefaultStokRestock() {
-            const dropdown = document.getElementById('restockPilihProduk');
-            if(!dropdown || !dropdown.value) return;
-            const kodeSelected = dropdown.value;
-            const produk = dbProduk.find(p => p.kode === kodeSelected);
-            if(produk) document.getElementById('restockJumlahStok').value = produk.stok;
-        }
-
-        function masukkanKeranjang(nama) {
-            const produk = dbProduk.find(p => p.nama === nama);
-            const ada = keranjangPOS.find(k => k.nama === nama);
-            const stokAsli = produk.stok;
-            const hargaAsli = produk.harga;
-
-            if(ada) {
-                if(ada.jumlah >= stokAsli) return alert("Stok maksimal produk tercapai!");
-                ada.jumlah++;
-            } else {
-                keranjangPOS.push({ nama: nama, harga: hargaAsli, jumlah: 1 });
-            }
-            refreshKeranjangUI();
-        }
-
-        function modifQty(nama, delta) {
-            const item = keranjangPOS.find(k => k.nama === nama);
-            const produk = dbProduk.find(p => p.nama === nama);
-            const stokAsli = produk.stok;
-            item.jumlah += delta;
-            if(item.jumlah > stokAsli) { alert("Stok barang habis!"); item.jumlah = stokAsli; }
-            if(item.jumlah <= 0) keranjangPOS = keranjangPOS.filter(k => k.nama !== nama);
-            refreshKeranjangUI();
-        }
-
-        function refreshKeranjangUI() {
-            const box = document.getElementById('listKeranjang');
-            const badge = document.getElementById('badgeItem');
-            if(keranjangPOS.length === 0) {
-                box.innerHTML = `<p class="text-gray-400 text-center py-8">Belum ada item dipilih</p>`;
-                badge.innerText = "0 Item";
-                document.getElementById('valSubtotal').innerText = "Rp 0";
-                document.getElementById('valTotal').innerText = "Rp 0";
-                grandTotal = 0;
-                return;
-            }
-            box.innerHTML = ""; grandTotal = 0; let countItem = 0;
-            keranjangPOS.forEach(k => {
-                grandTotal += (k.harga * k.jumlah);
-                countItem += k.jumlah;
-                box.innerHTML += `
-                    <div class="flex justify-between items-center py-2 border-b border-gray-50 gap-2">
-                        <div class="w-2/5"><p class="font-semibold text-slate-800 truncate">${k.nama}</p></div>
-                        <div class="flex items-center gap-1.5">
-                            <button onclick="modifQty('${k.nama}', -1)" class="w-5 h-5 bg-gray-100 rounded text-slate-600 font-bold">-</button>
-                            <span class="font-bold text-xs">${k.jumlah}</span>
-                            <button onclick="modifQty('${k.nama}', 1)" class="w-5 h-5 bg-gray-100 rounded text-slate-600 font-bold">+</button>
-                        </div>
-                        <span class="font-bold text-slate-700 w-24 text-right">Rp ${(k.harga * k.jumlah).toLocaleString('id-ID')}</span>
-                    </div>
-                `;
-            });
-            badge.innerText = `${countItem} Item`;
-            document.getElementById('valSubtotal').innerText = "Rp " + grandTotal.toLocaleString('id-ID');
-            document.getElementById('valTotal').innerText = "Rp " + grandTotal.toLocaleString('id-ID');
-            prosesKembalianOtomatis();
-        }
-
-        function prosesKembalianOtomatis() {
-            const cash = parseFloat(document.getElementById('inputBayar').value) || 0;
-            const sisa = cash - grandTotal;
-            document.getElementById('valKembalian').innerText = sisa >= 0 ? "Rp " + sisa.toLocaleString('id-ID') : "Uang Kurang";
-        }
-
-        function cariProdukRealtime() {
-            const kataKunci = document.getElementById('searchBar').value.toLowerCase();
-            const filter = dbProduk.filter(p => p.nama.toLowerCase().includes(kataKunci));
-            tampilkanKatalog(filter);
-        }
-
-        function eksekusiTransaksiPOS() {
-            if(keranjangPOS.length === 0) return alert("Pilih produk dahulu!");
-            const cashInput = parseFloat(document.getElementById('inputBayar').value) || 0;
-            if(cashInput < grandTotal) return alert("Uang pembayaran kurang!");
-
-            const notaID = "MTR-" + Date.now().toString().slice(-6);
-            const metode = document.getElementById('selectMetode').value;
-
-            document.getElementById('statusSistem').innerText = "Menyimpan Transaksi...";
-            document.getElementById('statusSistem').className = "text-xs bg-amber-600 font-semibold px-4 py-1.5 rounded-full animate-pulse";
-
-            fetch(SCRIPT_URL, {
-                method: "POST",
-                body: JSON.stringify({ action: "prosesTransaksi", idTransaksi: notaID, metode: metode, items: keranjangPOS })
-            })
-            .then(res => res.json())
-            .then(res => {
-                if(res.status === "success") {
-                    alert("Sukses! Nota " + notaID + " berhasil diproses.");
-                    keranjangPOS = [];
-                    document.getElementById('inputBayar').value = "";
-                    refreshKeranjangUI();
-                    ambilStokProdukSpreadsheet();
-                }
-            })
-            .finally(() => {
-                document.getElementById('statusSistem').className = "text-xs bg-emerald-600 font-semibold px-4 py-1.5 rounded-full text-white";
-                document.getElementById('statusSistem').innerHTML = `<span class="w-2 h-2 rounded-full bg-white animate-ping"></span> Terhubung ke Spreadsheet`;
-            });
-        }
-
-        function pindahHalaman(id) {
-            document.getElementById('page-home').classList.add('hidden');
-            document.getElementById('page-restock').classList.add('hidden');
-            document.getElementById('page-riwayat').classList.add('hidden');
-            document.getElementById('page-keuangan').classList.add('hidden');
-            document.getElementById('page-' + id).classList.remove('hidden');
-            
-            if(id === 'riwayat' || id === 'home') {
-                ambilStokProdukSpreadsheet();
-            }
-            toggleSidebar();
-        }
-
-        function toggleSidebar() { 
-            const sb = document.getElementById('sidebar');
-            if(sb) sb.classList.toggle('-translate-x-full'); 
-        }
-
-        window.onload = ambilStokProdukSpreadsheet;
-    </script>
-</body>
-</html>
