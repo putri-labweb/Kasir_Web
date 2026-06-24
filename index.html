@@ -161,8 +161,8 @@
     </main>
 
     <script>
-        // KUNCI UTAMA SINKRONISASI LINK - Ganti teks ini dengan Web App URL milikmu jika kamu melakukan Redeploy Apps Script!
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbynD49wwpXrmMBLjz0dl83MohK1hF3yRlIs4JmQ_YGm4hr_HMbRRn4KhaxriQlysCx_/exec";
+        // MASUKKAN URL WEB APP APPS SCRIPT BARU KAMU DI SINI
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbynD49wwpXrmMBLjz0dl83MohK1hF3yRlIs4JmQ_YGm4hr_HMbRRn4KhaxriQlysCx_/execc";
 
         let dbProduk = [];
         let keranjangPOS = [];
@@ -171,10 +171,8 @@
         let grandTotal = 0;
 
         function ambilStokProdukSpreadsheet() {
-            fetch(SCRIPT_URL, {
-                method: "POST",
-                body: JSON.stringify({ action: "getProduk" })
-            })
+            // Menggunakan metode GET agar tidak diblokir CORS oleh Google Cloud
+            fetch(`${SCRIPT_URL}?action=getProduk`)
             .then(res => res.json())
             .then(res => {
                 if(res.status === "success" && res.data) {
@@ -184,13 +182,10 @@
                 }
             }).catch(err => {
                 console.log(err);
-                document.getElementById('katalogProduk').innerHTML = `<p class="text-red-500 font-semibold col-span-full text-center py-4">Gagal memuat produk. Cek URL SCRIPT_URL!</p>`;
+                document.getElementById('katalogProduk').innerHTML = `<p class="text-red-500 font-semibold col-span-full text-center py-4">Gagal memuat produk. Cek tautan SCRIPT_URL!</p>`;
             });
             
-            fetch(SCRIPT_URL, {
-                method: "POST",
-                body: JSON.stringify({ action: "getRiwayat" })
-            })
+            fetch(`${SCRIPT_URL}?action=getRiwayat`)
             .then(res => res.json())
             .then(res => {
                 if(res.status === "success" && res.data) {
@@ -198,7 +193,7 @@
                     muatTabelRiwayat();
                 }
             }).catch(() => {
-                document.getElementById('bodyTabelRiwayat').innerHTML = `<tr><td colspan="6" class="text-center py-4 text-red-500 font-semibold">Gagal memuat data dari cloud. Periksa Deployment Apps Script!</td></tr>`;
+                document.getElementById('bodyTabelRiwayat').innerHTML = `<tr><td colspan="6" class="text-center py-4 text-red-500 font-semibold">Gagal memuat data riwayat dari cloud.</td></tr>`;
             });
         }
 
@@ -206,7 +201,7 @@
             const container = document.getElementById('katalogProduk');
             container.innerHTML = "";
             if(arrayData.length === 0) {
-                container.innerHTML = `<p class="text-gray-400 text-center py-4 col-span-full">Produk tidak ditemukan.</p>`;
+                container.innerHTML = `<p class="text-gray-400 text-center py-4 col-span-full">Produk kosong di Google Sheets.</p>`;
                 return;
             }
             arrayData.forEach(p => {
@@ -232,16 +227,14 @@
             const tbody = document.getElementById('bodyTabelRiwayat');
             tbody.innerHTML = "";
             if(jurnalTransaksi.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-gray-400">Kosong</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-gray-400">Belum ada riwayat transaksi</td></tr>`;
                 return;
             }
 
             jurnalTransaksi.forEach((t, index) => {
                 let ringkasan = "";
                 if (Array.isArray(t.items)) {
-                    ringkasan = t.items.map(prod => {
-                        return `${prod.nama} (${prod.qty}x)`;
-                    }).join(", ");
+                    ringkasan = t.items.map(prod => `${prod.nama} (${prod.qty}x)`).join(", ");
                 } else {
                     ringkasan = t.nama || "Produk";
                 }
@@ -294,15 +287,10 @@
                     `;
                 });
             } else {
-                containerItems.innerHTML = `<p class="text-center text-gray-400 py-2 italic text-[10px]">Data struk tidak ditemukan</p>`;
+                containerItems.innerHTML = `<p class="text-center text-gray-400 py-2 italic text-[10px]">Gagal memuat rincian belanja.</p>`;
             }
 
             document.getElementById('areaNotaCetak').scrollIntoView({ behavior: 'smooth' });
-        }
-
-        function cetakNotaDigital() {
-            if(!dataNotaTerpilih) return alert("Pilih nota di tabel terlebih dahulu!");
-            window.print();
         }
 
         function masukkanKeranjang(nama) {
