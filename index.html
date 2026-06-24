@@ -210,7 +210,6 @@
     </main>
 
     <script>
-        // MASUKKAN LINK URL WEB APP APPS SCRIPT KAMU DI BAWAH INI
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyu7D0EzL5c91qoYEIKtUYjZD5icjiAQQITxlfhAMWoCByPsDtyoyyl7BsIX4oMnVmv/exec";
 
         let dbProduk = [];
@@ -220,7 +219,6 @@
         let grandTotal = 0;
 
         function ambilStokProdukSpreadsheet() {
-            // Ambil katalog data produk
             fetch(SCRIPT_URL, {
                 method: "POST",
                 body: JSON.stringify({ action: "getProduk" })
@@ -234,7 +232,6 @@
                 }
             }).catch(err => console.log("Gagal ambil produk:", err));
             
-            // Ambil riwayat jurnal transaksi (Menggunakan POST action: getRiwayat)
             fetch(SCRIPT_URL, {
                 method: "POST",
                 body: JSON.stringify({ action: "getRiwayat" })
@@ -305,6 +302,7 @@
             });
         }
 
+        // FIX TOTAL BARIS RINCIAN NOTA JANGAN SAMPAI KOSONG
         function siapkanNotaLama(idx) {
             const t = jurnalTransaksi[idx];
             dataNotaTerpilih = t;
@@ -317,7 +315,7 @@
             const containerItems = document.getElementById('notaItems');
             containerItems.innerHTML = "";
             
-            // Memisahkan produk list berdasarkan koma
+            // Memecah teks rincian produk gabungan ("Kopi (x2), Teh (x1)") menjadi elemen per baris nota
             const itemsSplit = t.nama.split(", ");
             itemsSplit.forEach(item => {
                 containerItems.innerHTML += `
@@ -350,7 +348,7 @@
             if(!dropdown || !dropdown.value) return;
             const kodeSelected = dropdown.value;
             const produk = dbProduk.find(p => p.kode === kodeSelected);
-            if(produk) document.getElementById('restockJumlahStok').value = p.stok;
+            if(produk) document.getElementById('restockJumlahStok').value = produk.stok;
         }
 
         function masukkanKeranjang(nama) {
