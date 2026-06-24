@@ -226,10 +226,12 @@
             }
 
             jurnalTransaksi.forEach((t, index) => {
-                let ringkasan = t.nama.split(" | ").map(item => {
-                    let part = item.split("^");
-                    return part[0] ? part[0] + " (" + (part[1] || 1) + "x)" : item;
-                }).join(", ");
+                let ringkasan = "";
+                if (Array.isArray(t.items)) {
+                    ringkasan = t.items.map(prod => `${prod.nama} (${prod.qty}x)`).join(", ");
+                } else {
+                    ringkasan = t.nama || "Produk";
+                }
 
                 tbody.innerHTML += `
                     <tr class="hover:bg-gray-50 border-b text-[11px]">
@@ -260,39 +262,27 @@
             const containerItems = document.getElementById('notaItems');
             containerItems.innerHTML = "";
             
-            const itemsSplit = t.nama.split(" | ");
-            itemsSplit.forEach(item => {
-                if(item.trim() !== "") {
-                    let detail = item.split("^");
-                    
-                    // JALUR AMAN: Cek apakah data baru (menggunakan pemisah ^)
-                    if (detail.length >= 3) {
-                        let namaProd = detail[0];
-                        let qtyProd = parseInt(detail[1]) || 1;
-                        let hargaProd = parseInt(detail[2]) || 0;
-                        let subTotalProd = qtyProd * hargaProd;
+            if (Array.isArray(t.items) && t.items.length > 0) {
+                t.items.forEach(prod => {
+                    let namaProd = prod.nama || "Produk";
+                    let qtyProd = parseInt(prod.qty) || 1;
+                    let hargaProd = parseInt(prod.harga) || 0;
+                    let subTotalProd = qtyProd * hargaProd;
 
-                        containerItems.innerHTML += `
-                            <div class="grid grid-cols-12 text-[10px] text-slate-800 py-0.5">
-                                <div class="col-span-6 flex flex-col">
-                                    <span class="font-medium text-slate-900">${namaProd}</span>
-                                    <span class="text-[9px] text-gray-400">@Rp ${hargaProd.toLocaleString('id-ID')}</span>
-                                </div>
-                                <span class="col-span-2 text-center my-auto">${qtyProd}</span>
-                                <span class="col-span-4 text-right my-auto font-semibold">Rp ${subTotalProd.toLocaleString('id-ID')}</span>
+                    containerItems.innerHTML += `
+                        <div class="grid grid-cols-12 text-[10px] text-slate-800 py-1 border-b border-gray-50">
+                            <div class="col-span-6 flex flex-col">
+                                <span class="font-medium text-slate-900">${namaProd}</span>
+                                <span class="text-[9px] text-gray-400">@Rp ${hargaProd.toLocaleString('id-ID')}</span>
                             </div>
-                        `;
-                    } else {
-                        // JALUR CADANGAN: Pengaman jika admin mengeklik nota riwayat lama
-                        containerItems.innerHTML += `
-                            <div class="grid grid-cols-12 text-[10px] text-slate-800 py-0.5">
-                                <span class="col-span-8 font-medium">${item}</span>
-                                <span class="col-span-4 text-right font-semibold">-</span>
-                            </div>
-                        `;
-                    }
-                }
-            });
+                            <span class="col-span-2 text-center my-auto font-medium">${qtyProd}</span>
+                            <span class="col-span-4 text-right my-auto font-semibold text-slate-900">Rp ${subTotalProd.toLocaleString('id-ID')}</span>
+                        </div>
+                    `;
+                });
+            } else {
+                containerItems.innerHTML = `<p class="text-center text-gray-400 py-2 italic text-[10px]">Data struk tidak ditemukan</p>`;
+            }
 
             document.getElementById('areaNotaCetak').scrollIntoView({ behavior: 'smooth' });
         }
@@ -419,7 +409,12 @@
         }
 
         function toggleSidebar() { 
-            document.getElementById('sidebar').classList.add('-translate-x-full'); 
+            const sb = document.getElementById('sidebar');
+            if(sb.classList.contains('-translate-x-full')) {
+                sb.classList.remove('-translate-x-full');
+            } else {
+                sb.classList.add('-translate-x-full');
+            }
         }
 
         window.onload = ambilStokProdukSpreadsheet;
