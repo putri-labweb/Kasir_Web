@@ -122,13 +122,13 @@
                     <span class="col-span-4 text-right">Total</span>
                 </div>
 
-                <div id="notaItems" class="border-b border-dashed py-1 space-y-1">
+                <div id="notaItems" class="border-b border-dashed py-1 space-y-2">
                     <p class="text-gray-400 text-center py-2 italic text-[10px]">Silakan klik "Pilih Nota" di tabel bawah</p>
                 </div>
 
                 <div class="space-y-1 text-right text-[11px] pt-1">
-                    <div class="flex justify-between font-bold">
-                        <span>TOTAL AKHIR:</span>
+                    <div class="flex justify-between font-bold text-sm">
+                        <span>TOTAL BELANJA:</span>
                         <span id="notaTotal" class="text-maroon">Rp 0</span>
                     </div>
                 </div>
@@ -159,6 +159,7 @@
     </main>
 
     <script>
+        // KUNCI UTAMA SINKRONISASI LINK
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyu7D0EzL5c91qoYEIKtUYjZD5icjiAQQITxlfhAMWoCByPsDtyoyyl7BsIX4oMnVmv/exec";
 
         let dbProduk = [];
@@ -225,9 +226,8 @@
             }
 
             jurnalTransaksi.forEach((t, index) => {
-                // Parsing ringkasan item agar nama produk terlihat di tabel utama
                 let ringkasan = t.nama.split(" | ").map(item => {
-                    let part = item.split("*");
+                    let part = item.split("^");
                     return part[0] ? part[0] + " (" + (part[1] || 1) + "x)" : item;
                 }).join(", ");
 
@@ -248,7 +248,6 @@
             });
         }
 
-        // FUNGSI UTAMA: Memecah string Nama*Qty*Harga menjadi struk detail kasir
         function siapkanNotaLama(idx) {
             const t = jurnalTransaksi[idx];
             dataNotaTerpilih = t;
@@ -264,23 +263,34 @@
             const itemsSplit = t.nama.split(" | ");
             itemsSplit.forEach(item => {
                 if(item.trim() !== "") {
-                    // Pecah format Nama*Qty*Harga
-                    let detail = item.split("*");
-                    let namaProd = detail[0] || "Produk";
-                    let qtyProd = parseInt(detail[1]) || 1;
-                    let hargaProd = parseInt(detail[2]) || 0;
-                    let subTotalProd = qtyProd * hargaProd;
+                    let detail = item.split("^");
+                    
+                    // JALUR AMAN: Cek apakah data baru (menggunakan pemisah ^)
+                    if (detail.length >= 3) {
+                        let namaProd = detail[0];
+                        let qtyProd = parseInt(detail[1]) || 1;
+                        let hargaProd = parseInt(detail[2]) || 0;
+                        let subTotalProd = qtyProd * hargaProd;
 
-                    containerItems.innerHTML += `
-                        <div class="grid grid-cols-12 text-[10px] text-slate-800 py-0.5">
-                            <div class="col-span-6 flex flex-col">
-                                <span class="font-medium">${namaProd}</span>
-                                <span class="text-[9px] text-gray-400">@Rp ${hargaProd.toLocaleString('id-ID')}</span>
+                        containerItems.innerHTML += `
+                            <div class="grid grid-cols-12 text-[10px] text-slate-800 py-0.5">
+                                <div class="col-span-6 flex flex-col">
+                                    <span class="font-medium text-slate-900">${namaProd}</span>
+                                    <span class="text-[9px] text-gray-400">@Rp ${hargaProd.toLocaleString('id-ID')}</span>
+                                </div>
+                                <span class="col-span-2 text-center my-auto">${qtyProd}</span>
+                                <span class="col-span-4 text-right my-auto font-semibold">Rp ${subTotalProd.toLocaleString('id-ID')}</span>
                             </div>
-                            <span class="col-span-2 text-center my-auto">${qtyProd}</span>
-                            <span class="col-span-4 text-right my-auto font-semibold">Rp ${subTotalProd.toLocaleString('id-ID')}</span>
-                        </div>
-                    `;
+                        `;
+                    } else {
+                        // JALUR CADANGAN: Pengaman jika admin mengeklik nota riwayat lama
+                        containerItems.innerHTML += `
+                            <div class="grid grid-cols-12 text-[10px] text-slate-800 py-0.5">
+                                <span class="col-span-8 font-medium">${item}</span>
+                                <span class="col-span-4 text-right font-semibold">-</span>
+                            </div>
+                        `;
+                    }
                 }
             });
 
