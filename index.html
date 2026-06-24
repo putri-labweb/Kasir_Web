@@ -198,7 +198,9 @@
             arrayData.forEach(p => {
                 container.innerHTML += `
                     <div class="bg-white rounded-2xl overflow-hidden shadow-sm border border-orange-50 p-3 flex flex-col justify-between">
-                        <img src="${p.gambar}" class="w-full h-24 object-cover rounded-lg">
+                        <img src="${p.gambar}"
+                         onerror="this.src='https://via.placeholder.com/150'"
+                          class="w-full h-24 object-cover rounded-lg">
                         <div class="mt-2 space-y-1">
                             <h4 class="font-bold text-xs text-slate-800 truncate">${p.nama}</h4>
                             <div class="flex justify-between items-center text-[11px]">
@@ -214,32 +216,129 @@
             });
         }
 
-        function muatTabelRiwayat() {
-            const tbody = document.getElementById('bodyTabelRiwayat');
-            tbody.innerHTML = "";
-            if(jurnalTransaksi.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-gray-400">Belum ada transaksi terekam.</td></tr>`;
-                return;
-            }
+        function muatTabelRiwayat(){
 
-            jurnalTransaksi.forEach((t, index) => {
-                tbody.innerHTML += `
-                    <tr class="hover:bg-gray-50 border-b text-[11px]">
-                        <td class="p-3">${t.waktu}</td>
-                        <td class="p-3 font-semibold">${t.idTransaksi}</td>
-                        <td class="p-3 truncate max-w-[150px]">${t.namaProduk}</td>
-                        <td class="p-3 text-center">${t.jumlah}x</td>
-                        <td class="p-3 font-bold">Rp ${t.total.toLocaleString('id-ID')}</td>
-                        <td class="p-3">
-                            <button onclick="siapkanNotaLama(${index})" class="bg-maroon text-white text-[10px] px-3 py-1 rounded-xl shadow hover-maroon transition">
-                                Pilih Nota
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            });
+    const tbody =
+        document.getElementById("bodyTabelRiwayat");
+
+    tbody.innerHTML = "";
+
+    const notaMap = {};
+
+    jurnalTransaksi.forEach(item=>{
+
+        if(!notaMap[item.idTransaksi]){
+
+            notaMap[item.idTransaksi] = {
+                waktu:item.waktu,
+                metode:item.metode,
+                total:0,
+                produk:[]
+            };
         }
 
+        notaMap[item.idTransaksi]
+            .produk.push(item.namaProduk);
+
+        notaMap[item.idTransaksi]
+            .total += Number(item.total);
+    });
+
+    Object.keys(notaMap).forEach(id=>{
+
+        const nota = notaMap[id];
+
+        tbody.innerHTML += `
+        <tr class="border-b">
+
+            <td class="p-3">
+                ${nota.waktu}
+            </td>
+
+            <td class="p-3 font-bold">
+                ${id}
+            </td>
+
+            <td class="p-3">
+                ${nota.produk.join(", ")}
+            </td>
+
+            <td class="p-3">
+                -
+            </td>
+
+            <td class="p-3 font-bold">
+                Rp ${nota.total.toLocaleString('id-ID')}
+            </td>
+
+            <td class="p-3">
+                <button
+                    onclick="pilihNota('${id}')"
+                    class="bg-maroon text-white px-3 py-1 rounded-xl">
+                    Pilih Nota
+                </button>
+            </td>
+
+        </tr>
+        `;
+    });
+}
+
+        function pilihNota(idNota){
+
+    const semuaItem =
+        jurnalTransaksi.filter(
+            x => x.idTransaksi === idNota
+        );
+
+    if(semuaItem.length===0) return;
+
+    const pertama = semuaItem[0];
+
+    document.getElementById("notaWaktu").innerText =
+        "Waktu: " + pertama.waktu;
+
+    document.getElementById("notaID").innerText =
+        "Nota: " + pertama.idTransaksi;
+
+    document.getElementById("notaMetode").innerText =
+        "Metode: " + pertama.metode;
+
+    let html = "";
+    let total = 0;
+
+    semuaItem.forEach(item=>{
+
+        total += Number(item.total);
+
+        html += `
+        <div class="grid grid-cols-12 py-1 text-[10px]">
+
+            <div class="col-span-6">
+                <div>${item.namaProduk}</div>
+                <div class="text-gray-400">
+                    @Rp ${Number(item.harga).toLocaleString('id-ID')}
+                </div>
+            </div>
+
+            <div class="col-span-2 text-center">
+                ${item.jumlah}
+            </div>
+
+            <div class="col-span-4 text-right">
+                Rp ${Number(item.total).toLocaleString('id-ID')}
+            </div>
+
+        </div>
+        `;
+    });
+
+    document.getElementById("notaItems").innerHTML =
+        html;
+
+    document.getElementById("notaTotal").innerText =
+        "Rp " + total.toLocaleString("id-ID");
+}
         function siapkanNotaLama(idx) {
             const t = jurnalTransaksi[idx];
             dataNotaTerpilih = t;
