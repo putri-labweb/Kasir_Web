@@ -36,7 +36,6 @@
     <div id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-white border-r border-orange-100 shadow-2xl pt-24 z-40 transition-transform duration-300 -translate-x-full">
         <nav class="flex flex-col gap-2 p-4">
             <button onclick="pindahHalaman('home')" class="flex items-center gap-3 p-3 rounded-xl hover:bg-red-50 text-maroon font-semibold transition"><i class="fas fa-cash-register w-6 text-lg"></i> Home / Kasir</button>
-            <button onclick="pindahHalaman('restock')" class="flex items-center gap-3 p-3 rounded-xl hover:bg-red-50 text-maroon font-semibold transition"><i class="fas fa-boxes w-6 text-lg"></i> Kelola & Restock Stok</button>
             <button onclick="pindahHalaman('riwayat')" class="flex items-center gap-3 p-3 rounded-xl hover:bg-red-50 text-maroon font-semibold transition"><i class="fas fa-receipt w-6 text-lg"></i> Riwayat Transaksi</button>
         </nav>
     </div>
@@ -90,15 +89,6 @@
             </div>
         </section>
 
-        <section id="page-restock" class="hidden bg-white p-6 rounded-2xl shadow-sm space-y-6">
-            <h2 class="text-lg font-bold text-maroon"><i class="fas fa-boxes mr-2"></i> Update / Atur Stok</h2>
-            <div class="space-y-4 max-w-md">
-                <select id="restockPilihProduk" onchange="isiDefaultStokRestock()" class="w-full border p-3 rounded-xl text-sm bg-gray-50"></select>
-                <input type="number" id="restockJumlahStok" class="w-full border p-3 rounded-xl text-sm font-semibold" placeholder="Angka stok baru...">
-                <button onclick="simpanRestokKeSpreadsheet()" class="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold text-sm">SIMPAN STOK</button>
-            </div>
-        </section>
-
         <section id="page-riwayat" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-orange-50 space-y-6">
             <div class="flex justify-between items-center border-b pb-4">
                 <h2 class="text-lg font-bold text-maroon"><i class="fas fa-history mr-2"></i> Jurnal Transaksi</h2>
@@ -119,9 +109,9 @@
                 </div>
                 
                 <div class="grid grid-cols-12 font-bold text-[10px] border-b pb-1 text-slate-700">
-                    <span class="col-span-6">Nama Produk</span>
+                    <span class="col-span-6">Deskripsi Produk</span>
                     <span class="col-span-2 text-center">Qty</span>
-                    <span class="col-span-4 text-right">Total</span>
+                    <span class="col-span-4 text-right">Total Transaksi</span>
                 </div>
 
                 <div id="notaItems" class="border-b border-dashed py-1 space-y-2">
@@ -130,12 +120,13 @@
 
                 <div class="space-y-1 text-right text-[11px] pt-1">
                     <div class="flex justify-between font-bold text-sm">
-                        <span>TOTAL BELANJA:</span>
+                        <span>TOTAL TRANSAKSI:</span>
                         <span id="notaTotal" class="text-maroon">Rp 0</span>
                     </div>
                 </div>
                 <div class="text-center border-t border-dashed pt-2 text-[10px] text-gray-500 italic">
                     <p>Terima Kasih Telah Berbelanja!</p>
+                    <p>Barang yang sudah dibeli tidak dapat ditukar.</p>
                 </div>
             </div>
 
@@ -145,9 +136,9 @@
                         <tr>
                             <th class="p-3">Waktu</th>
                             <th class="p-3">ID Nota</th>
-                            <th class="p-3">Ringkasan Item</th>
+                            <th class="p-3">Nama Produk</th>
+                            <th class="p-3">Qty</th>
                             <th class="p-3">Total Belanja</th>
-                            <th class="p-3">Metode</th>
                             <th class="p-3">Aksi</th>
                         </tr>
                     </thead>
@@ -161,8 +152,8 @@
     </main>
 
     <script>
-        // MASUKKAN URL WEB APP APPS SCRIPT BARU KAMU DI SINI
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbynD49wwpXrmMBLjz0dl83MohK1hF3yRlIs4JmQ_YGm4hr_HMbRRn4KhaxriQlysCx_/execc";
+        // MASUKKAN LINK DEPLOYMENT SCRIPT WEB APP BARU KAMU DI SINI
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbynD49wwpXrmMBLjz0dl83MohK1hF3yRlIs4JmQ_YGm4hr_HMbRRn4KhaxriQlysCx_/exec";
 
         let dbProduk = [];
         let keranjangPOS = [];
@@ -171,20 +162,20 @@
         let grandTotal = 0;
 
         function ambilStokProdukSpreadsheet() {
-            // Menggunakan metode GET agar tidak diblokir CORS oleh Google Cloud
+            // Ambil katalog produk via GET murni
             fetch(`${SCRIPT_URL}?action=getProduk`)
             .then(res => res.json())
             .then(res => {
                 if(res.status === "success" && res.data) {
                     dbProduk = res.data;
                     tampilkanKatalog(dbProduk);
-                    bangunOpsiRestock();
                 }
             }).catch(err => {
                 console.log(err);
-                document.getElementById('katalogProduk').innerHTML = `<p class="text-red-500 font-semibold col-span-full text-center py-4">Gagal memuat produk. Cek tautan SCRIPT_URL!</p>`;
+                document.getElementById('katalogProduk').innerHTML = `<p class="text-red-500 font-semibold col-span-full text-center py-4">Gagal terhubung ke database. Periksa kembali SCRIPT_URL!</p>`;
             });
             
+            // Ambil riwayat via GET murni
             fetch(`${SCRIPT_URL}?action=getRiwayat`)
             .then(res => res.json())
             .then(res => {
@@ -193,7 +184,7 @@
                     muatTabelRiwayat();
                 }
             }).catch(() => {
-                document.getElementById('bodyTabelRiwayat').innerHTML = `<tr><td colspan="6" class="text-center py-4 text-red-500 font-semibold">Gagal memuat data riwayat dari cloud.</td></tr>`;
+                document.getElementById('bodyTabelRiwayat').innerHTML = `<tr><td colspan="6" class="text-center py-4 text-red-500 font-semibold">Gagal memuat riwayat dari Google Sheets.</td></tr>`;
             });
         }
 
@@ -201,7 +192,7 @@
             const container = document.getElementById('katalogProduk');
             container.innerHTML = "";
             if(arrayData.length === 0) {
-                container.innerHTML = `<p class="text-gray-400 text-center py-4 col-span-full">Produk kosong di Google Sheets.</p>`;
+                container.innerHTML = `<p class="text-gray-400 text-center py-4 col-span-full">Tidak ada produk aktif di Sheet.</p>`;
                 return;
             }
             arrayData.forEach(p => {
@@ -227,25 +218,18 @@
             const tbody = document.getElementById('bodyTabelRiwayat');
             tbody.innerHTML = "";
             if(jurnalTransaksi.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-gray-400">Belum ada riwayat transaksi</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-4 text-gray-400">Belum ada transaksi terekam.</td></tr>`;
                 return;
             }
 
             jurnalTransaksi.forEach((t, index) => {
-                let ringkasan = "";
-                if (Array.isArray(t.items)) {
-                    ringkasan = t.items.map(prod => `${prod.nama} (${prod.qty}x)`).join(", ");
-                } else {
-                    ringkasan = t.nama || "Produk";
-                }
-
                 tbody.innerHTML += `
                     <tr class="hover:bg-gray-50 border-b text-[11px]">
                         <td class="p-3">${t.waktu}</td>
                         <td class="p-3 font-semibold">${t.idTransaksi}</td>
-                        <td class="p-3 truncate max-w-[180px]">${ringkasan}</td>
-                        <td class="p-3 font-bold">Rp ${parseInt(t.total).toLocaleString('id-ID')}</td>
-                        <td class="p-3"><span class="px-2 py-0.5 bg-red-50 text-maroon rounded-full">${t.metode}</span></td>
+                        <td class="p-3 truncate max-w-[150px]">${t.namaProduk}</td>
+                        <td class="p-3 text-center">${t.jumlah}x</td>
+                        <td class="p-3 font-bold">Rp ${t.total.toLocaleString('id-ID')}</td>
                         <td class="p-3">
                             <button onclick="siapkanNotaLama(${index})" class="bg-maroon text-white text-[10px] px-3 py-1 rounded-xl shadow hover-maroon transition">
                                 Pilih Nota
@@ -263,32 +247,21 @@
             document.getElementById('notaWaktu').innerText = "Waktu: " + t.waktu;
             document.getElementById('notaID').innerText = "Nota: " + t.idTransaksi;
             document.getElementById('notaMetode').innerText = "Metode: " + t.metode;
-            document.getElementById('notaTotal').innerText = "Rp " + parseInt(t.total).toLocaleString('id-ID');
+            document.getElementById('notaTotal').innerText = "Rp " + t.total.toLocaleString('id-ID');
 
             const containerItems = document.getElementById('notaItems');
-            containerItems.innerHTML = "";
             
-            if (Array.isArray(t.items) && t.items.length > 0) {
-                t.items.forEach(prod => {
-                    let namaProd = prod.nama || "Produk";
-                    let qtyProd = parseInt(prod.qty) || 1;
-                    let hargaProd = parseInt(prod.harga) || 0;
-                    let subTotalProd = qtyProd * hargaProd;
-
-                    containerItems.innerHTML += `
-                        <div class="grid grid-cols-12 text-[10px] text-slate-800 py-1 border-b border-gray-50">
-                            <div class="col-span-6 flex flex-col">
-                                <span class="font-medium text-slate-900">${namaProd}</span>
-                                <span class="text-[9px] text-gray-400">@Rp ${hargaProd.toLocaleString('id-ID')}</span>
-                            </div>
-                            <span class="col-span-2 text-center my-auto font-medium">${qtyProd}</span>
-                            <span class="col-span-4 text-right my-auto font-semibold text-slate-900">Rp ${subTotalProd.toLocaleString('id-ID')}</span>
-                        </div>
-                    `;
-                });
-            } else {
-                containerItems.innerHTML = `<p class="text-center text-gray-400 py-2 italic text-[10px]">Gagal memuat rincian belanja.</p>`;
-            }
+            // Langsung menyisipkan nama teks produk mentah tanpa takut object crash
+            containerItems.innerHTML = `
+                <div class="grid grid-cols-12 text-[10px] text-slate-800 py-1">
+                    <div class="col-span-6 flex flex-col">
+                        <span class="font-medium text-slate-900">${t.namaProduk}</span>
+                        <span class="text-[9px] text-gray-400">@Rp ${t.harga.toLocaleString('id-ID')}</span>
+                    </div>
+                    <span class="col-span-2 text-center my-auto font-medium">${t.jumlah}</span>
+                    <span class="col-span-4 text-right my-auto font-semibold text-slate-900">Rp ${t.total.toLocaleString('id-ID')}</span>
+                </div>
+            `;
 
             document.getElementById('areaNotaCetak').scrollIntoView({ behavior: 'smooth' });
         }
@@ -297,7 +270,7 @@
             const produk = dbProduk.find(p => p.nama === nama);
             const ada = keranjangPOS.find(k => k.nama === nama);
             if(ada) {
-                if(ada.jumlah >= produk.stok) return alert("Stok tipis / habis!");
+                if(ada.jumlah >= produk.stok) return alert("Stok produk tidak mencukupi!");
                 ada.jumlah++;
             } else {
                 keranjangPOS.push({ nama: nama, harga: produk.harga, jumlah: 1 });
@@ -309,7 +282,7 @@
             const item = keranjangPOS.find(k => k.nama === nama);
             const produk = dbProduk.find(p => p.nama === nama);
             item.jumlah += delta;
-            if(item.jumlah > produk.stok) { alert("Batas maksimum stok!"); item.jumlah = produk.stok; }
+            if(item.jumlah > produk.stok) { alert("Batas stok maksimal!"); item.jumlah = produk.stok; }
             if(item.jumlah <= 0) keranjangPOS = keranjangPOS.filter(k => k.nama !== nama);
             refreshKeranjangUI();
         }
@@ -358,14 +331,14 @@
         }
 
         function eksekusiTransaksiPOS() {
-            if(keranjangPOS.length === 0) return alert("Keranjang kosong!");
+            if(keranjangPOS.length === 0) return alert("Keranjang belanja masih kosong!");
             const cashInput = parseFloat(document.getElementById('inputBayar').value) || 0;
-            if(cashInput < grandTotal) return alert("Uang pembayaran kurang!");
+            if(cashInput < grandTotal) return alert("Pembayaran kurang!");
 
             const notaID = "MTR-" + Date.now().toString().slice(-6);
             const metode = document.getElementById('selectMetode').value;
 
-            document.getElementById('statusSistem').innerText = "Memproses...";
+            document.getElementById('statusSistem').innerText = "Menyimpan...";
             fetch(SCRIPT_URL, {
                 method: "POST",
                 body: JSON.stringify({ action: "prosesTransaksi", idTransaksi: notaID, metode: metode, items: keranjangPOS })
@@ -373,7 +346,7 @@
             .then(res => res.json())
             .then(res => {
                 if(res.status === "success") {
-                    alert("Transaksi " + notaID + " Sukses!");
+                    alert("Transaksi " + notaID + " Berhasil Disimpan!");
                     keranjangPOS = [];
                     document.getElementById('inputBayar').value = "";
                     refreshKeranjangUI();
@@ -384,26 +357,8 @@
             });
         }
 
-        function bangunOpsiRestock() {
-            const dropdown = document.getElementById('restockPilihProduk');
-            if(!dropdown) return; dropdown.innerHTML = "";
-            dbProduk.forEach(p => {
-                dropdown.innerHTML += `<option value="${p.kode}">${p.nama} (Stok: ${p.stok})</option>`;
-            });
-            isiDefaultStokRestock();
-        }
-
-        function isiDefaultStokRestock() {
-            const dropdown = document.getElementById('restockPilihProduk');
-            if(!dropdown || !dropdown.value) return;
-            const kodeSelected = dropdown.value;
-            const produk = dbProduk.find(p => p.kode === kodeSelected);
-            if(produk) document.getElementById('restockJumlahStok').value = produk.stok;
-        }
-
         function pindahHalaman(id) {
             document.getElementById('page-home').classList.add('hidden');
-            document.getElementById('page-restock').classList.add('hidden');
             document.getElementById('page-riwayat').classList.add('hidden');
             document.getElementById('page-' + id).classList.remove('hidden');
             if(id === 'riwayat' || id === 'home') ambilStokProdukSpreadsheet();
