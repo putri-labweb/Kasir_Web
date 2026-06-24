@@ -1,0 +1,209 @@
+CODE.GS
+
+function onEdit(e) {
+
+  const sheet = e.range.getSheet();
+
+  if (sheet.getName() !== "Transaksi" && sheet.getName() !== "Restock") return;
+
+  const row = e.range.getRow();
+  const col = e.range.getColumn();
+
+  // ==============================
+  // FITUR 1: TRANSAKSI (KELUAR BARANG)
+  // ==============================
+  if (sheet.getName() === "Transaksi") {
+
+    if (col === 3) {
+      const tanggalCell = sheet.getRange(row, 2);
+
+      if (tanggalCell.getValue() === "") {
+        tanggalCell.setValue(new Date());
+      }
+    }
+
+    if (col === 8) {
+
+      const status = e.value;
+      if (status !== "Selesai") return;
+
+      const namaProduk = sheet.getRange(row, 3).getValue();
+      const qty = Number(sheet.getRange(row, 4).getValue());
+
+      const produkSheet = e.source.getSheetByName("Data Produk");
+      const lastRow = produkSheet.getLastRow();
+
+      const data = produkSheet.getRange(2, 1, lastRow - 1, 4).getValues();
+
+      for (let i = 0; i < data.length; i++) {
+
+        const namaProdukData = data[i][1];
+
+        if (namaProdukData === namaProduk) {
+
+          const stokLama = Number(data[i][3]);
+
+          if (qty > stokLama) {
+            SpreadsheetApp.getUi().alert("Stok tidak mencukupi!");
+            sheet.getRange(row, 8).setValue("Belum");
+            return;
+          }
+
+          const stokBaru = stokLama - qty;
+
+          produkSheet.getRange(i + 2, 4).setValue(stokBaru);
+
+          break;
+        }
+      }
+    }
+  }
+
+  // ==============================
+  // FITUR 2: STOK MASUK (TAMBAH STOK)
+  // ==============================
+  if (sheet.getName() === "Restock") {
+
+    if (col === 5) {
+
+      if (!e.value) return; // 🔥 safety biar tidak error
+
+      const status = String(e.value).trim();
+      if (status !== "Selesai") return;
+
+      const namaProduk = String(sheet.getRange(row, 2).getValue()).trim();
+      const qty = Number(sheet.getRange(row, 3).getValue());
+
+      const produkSheet = e.source.getSheetByName("Data Produk");
+      const lastRow = produkSheet.getLastRow();
+
+      const data = produkSheet.getRange(2, 1, lastRow - 1, 4).getValues();
+
+      for (let i = 0; i < data.length; i++) {
+
+        const namaProdukData = String(data[i][1]).trim();
+
+        if (namaProdukData.toLowerCase() === namaProduk.toLowerCase()) {
+
+          const stokLama = Number(data[i][3]);
+
+          const stokBaru = stokLama + qty;
+
+          produkSheet.getRange(i + 2, 4).setValue(stokBaru);
+
+          SpreadsheetApp.getActive().toast(
+            "Stok " + namaProduk + " bertambah " + qty
+          );
+
+          break;
+        }
+      }
+    }
+  }
+}
+function doPost(e){
+
+  const data = JSON.parse(e.postData.contents);
+
+  const ss =
+    SpreadsheetApp.getActiveSpreadsheet();
+
+  const transaksiSheet =
+    ss.getSheetByName("Transaksi");
+
+  const produkSheet =
+    ss.getSheetByName("Data Produk");
+
+  data.cart.forEach(item => {
+
+    const dataProduk =
+      produkSheet.getDataRange()
+      .getValues();
+
+    let modal = 0;
+
+    for(let i=1;i<dataProduk.length;i++){
+
+      if(dataProduk[i][1] == item.nama){
+
+        const stokLama =
+          Number(dataProduk[i][3]);
+
+        produkSheet
+          .getRange(i+1,4)
+          .setValue(stokLama - item.qty);
+
+        modal =
+          Number(dataProduk[i][4]);
+
+        break;
+      }
+    }
+
+    const labaKotor =
+      (item.harga - modal)
+      * item.qty;
+
+    transaksiSheet.appendRow([
+      "TRX"+Date.now(),
+      new Date(),
+      item.nama,
+      item.qty,
+      item.harga,
+      item.harga * item.qty,
+      item.harga * item.qty,
+      "Selesai",
+      labaKotor
+    ]);
+
+  });
+
+  return ContentService
+    .createTextOutput(
+      JSON.stringify({
+        success:true
+      })
+    )
+    .setMimeType(
+      ContentService.MimeType.JSON
+    );
+}
+
+
+
+
+API.GS
+
+function doGet() {
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  const sheet =
+    ss.getSheetByName("Data Produk");
+
+  const data =
+    sheet.getDataRange().getValues();
+
+  let produk = [];
+
+  for(let i = 2; i < data.length; i++){
+
+    produk.push({
+      kode: data[i][0],
+      nama: data[i][1],
+      harga: data[i][2],
+      stok: data[i][3] ,
+      gambar: data[i][5]
+    });
+
+  }
+
+  return ContentService
+    .createTextOutput(
+      JSON.stringify(produk)
+    )
+    .setMimeType(
+      ContentService.MimeType.JSON
+    );
+
+}
