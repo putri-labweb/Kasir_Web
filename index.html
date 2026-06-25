@@ -37,6 +37,7 @@
         <nav class="flex flex-col gap-2 p-4">
             <button onclick="pindahHalaman('home')" class="flex items-center gap-3 p-3 rounded-xl hover:bg-red-50 text-maroon font-semibold transition"><i class="fas fa-cash-register w-6 text-lg"></i> Home / Kasir</button>
             <button onclick="pindahHalaman('riwayat')" class="flex items-center gap-3 p-3 rounded-xl hover:bg-red-50 text-maroon font-semibold transition"><i class="fas fa-receipt w-6 text-lg"></i> Riwayat Transaksi</button>
+            <button onclick="pindahHalaman('penjualan')" class="flex items-center gap-3 p-3 rounded-xl hover:bg-red-50 text-maroon font-semibold transition"><i class="fas fa-chart-bar w-6 text-lg"></i> Data Penjualan</button>
         </nav>
     </div>
 
@@ -92,7 +93,7 @@
         <section id="page-riwayat" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-orange-50 space-y-6">
             <div class="flex justify-between items-center border-b pb-4">
                 <h2 class="text-lg font-bold text-maroon"><i class="fas fa-history mr-2"></i> Jurnal Transaksi</h2>
-                <button onclick="cetakNotaDigital()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow transition flex items-center gap-1.5">
+                <button onclick="window.print()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow transition flex items-center gap-1.5">
                     <i class="fas fa-print"></i> CETAK NOTA KASIR
                 </button>
             </div>
@@ -111,7 +112,7 @@
                 <div class="grid grid-cols-12 font-bold text-[10px] border-b pb-1 text-slate-700">
                     <span class="col-span-6">Deskripsi Produk</span>
                     <span class="col-span-2 text-center">Qty</span>
-                    <span class="col-span-4 text-right">Total Transaksi</span>
+                    <span class="col-span-4 text-right">Total</span>
                 </div>
 
                 <div id="notaItems" class="border-b border-dashed py-1 space-y-2">
@@ -136,16 +137,41 @@
                         <tr>
                             <th class="p-3">Waktu</th>
                             <th class="p-3">ID Nota</th>
-                            <th class="p-3">Nama Produk</th>
-                            <th class="p-3">Qty</th>
+                            <th class="p-3">Nama Produk (Ringkasan)</th>
                             <th class="p-3">Total Belanja</th>
                             <th class="p-3">Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="bodyTabelRiwayat" class="divide-y divide-gray-100 text-gray-600">
-                        <tr><td colspan="6" class="text-center py-4 text-gray-400">Memuat data cloud...</td></tr>
+                        <tr><td colspan="5" class="text-center py-4 text-gray-400">Memuat data cloud...</td></tr>
                     </tbody>
                 </table>
+            </div>
+        </section>
+
+        <section id="page-penjualan" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-orange-50 space-y-6">
+            <h2 class="text-lg font-bold text-maroon border-b pb-3"><i class="fas fa-chart-line mr-2"></i> Dashboard Analisis Penjualan</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-red-50 p-4 rounded-xl border border-red-100">
+                    <p class="text-xs text-red-800 font-medium uppercase">Total Omset Pendapatan</p>
+                    <h3 id="statOmset" class="text-2xl font-bold text-maroon mt-1">Rp 0</h3>
+                </div>
+                <div class="bg-amber-50 p-4 rounded-xl border border-amber-100">
+                    <p class="text-xs text-amber-800 font-medium uppercase">Total Transaksi Nota</p>
+                    <h3 id="statNota" class="text-2xl font-bold text-amber-900 mt-1">0</h3>
+                </div>
+                <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                    <p class="text-xs text-emerald-800 font-medium uppercase">Produk Terjual (Qty)</p>
+                    <h3 id="statQty" class="text-2xl font-bold text-emerald-950 mt-1">0 Item</h3>
+                </div>
+            </div>
+
+            <div class="border p-4 rounded-xl bg-gray-50/50">
+                <h4 class="font-bold text-sm text-slate-800 mb-3"><i class="fas fa-trophy text-amber-500 mr-1"></i> Produk Terlaris (Berdasarkan Kuantitas)</h4>
+                <div id="listProdukTerlaris" class="space-y-2 text-xs">
+                    <p class="text-gray-400 italic">Belum ada data transaksi masuk.</p>
+                </div>
             </div>
         </section>
 
@@ -158,11 +184,10 @@
         let dbProduk = [];
         let keranjangPOS = [];
         let jurnalTransaksi = [];
-        let dataNotaTerpilih = null;
         let grandTotal = 0;
 
         function ambilStokProdukSpreadsheet() {
-            // Ambil katalog produk via GET murni
+            // Ambil katalog produk via GET
             fetch(`${SCRIPT_URL}?action=getProduk`)
             .then(res => res.json())
             .then(res => {
@@ -175,16 +200,17 @@
                 document.getElementById('katalogProduk').innerHTML = `<p class="text-red-500 font-semibold col-span-full text-center py-4">Gagal terhubung ke database. Periksa kembali SCRIPT_URL!</p>`;
             });
             
-            // Ambil riwayat via GET murni
+            // Ambil riwayat via GET
             fetch(`${SCRIPT_URL}?action=getRiwayat`)
             .then(res => res.json())
             .then(res => {
                 if(res.status === "success" && res.data) {
                     jurnalTransaksi = res.data;
                     muatTabelRiwayat();
+                    hitungStatistikPenjualan();
                 }
             }).catch(() => {
-                document.getElementById('bodyTabelRiwayat').innerHTML = `<tr><td colspan="6" class="text-center py-4 text-red-500 font-semibold">Gagal memuat riwayat dari Google Sheets.</td></tr>`;
+                document.getElementById('bodyTabelRiwayat').innerHTML = `<tr><td colspan="5" class="text-center py-4 text-red-500 font-semibold">Gagal memuat riwayat dari Google Sheets.</td></tr>`;
             });
         }
 
@@ -198,9 +224,7 @@
             arrayData.forEach(p => {
                 container.innerHTML += `
                     <div class="bg-white rounded-2xl overflow-hidden shadow-sm border border-orange-50 p-3 flex flex-col justify-between">
-                        <img src="${p.gambar}"
-                         onerror="this.src='https://via.placeholder.com/150'"
-                          class="w-full h-24 object-cover rounded-lg">
+                        <img src="${p.gambar}" onerror="this.src='https://via.placeholder.com/150'" class="w-full h-24 object-cover rounded-lg">
                         <div class="mt-2 space-y-1">
                             <h4 class="font-bold text-xs text-slate-800 truncate">${p.nama}</h4>
                             <div class="flex justify-between items-center text-[11px]">
@@ -217,152 +241,118 @@
         }
 
         function muatTabelRiwayat(){
+            const tbody = document.getElementById("bodyTabelRiwayat");
+            tbody.innerHTML = "";
 
-    const tbody =
-        document.getElementById("bodyTabelRiwayat");
+            if(jurnalTransaksi.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-gray-400">Belum ada rekam transaksi cloud.</td></tr>`;
+                return;
+            }
 
-    tbody.innerHTML = "";
+            const notaMap = {};
+            jurnalTransaksi.forEach(item => {
+                if(!notaMap[item.idTransaksi]){
+                    notaMap[item.idTransaksi] = {
+                        waktu: item.waktu,
+                        metode: item.metode,
+                        total: 0,
+                        produk: []
+                    };
+                }
+                notaMap[item.idTransaksi].produk.push(item.namaProduk + " (" + item.jumlah + ")");
+                notaMap[item.idTransaksi].total += Number(item.total);
+            });
 
-    const notaMap = {};
-
-    jurnalTransaksi.forEach(item=>{
-
-        if(!notaMap[item.idTransaksi]){
-
-            notaMap[item.idTransaksi] = {
-                waktu:item.waktu,
-                metode:item.metode,
-                total:0,
-                produk:[]
-            };
+            Object.keys(notaMap).forEach(id => {
+                const nota = notaMap[id];
+                tbody.innerHTML += `
+                <tr class="border-b">
+                    <td class="p-3">${nota.waktu}</td>
+                    <td class="p-3 font-bold">${id}</td>
+                    <td class="p-3 text-gray-500">${nota.produk.join(", ")}</td>
+                    <td class="p-3 font-bold text-maroon">Rp ${nota.total.toLocaleString('id-ID')}</td>
+                    <td class="p-3">
+                        <button onclick="pilihNota('${id}')" class="bg-maroon text-white px-3 py-1 rounded-xl hover-maroon text-[11px]">
+                            Pilih Nota
+                        </button>
+                    </td>
+                </tr>
+                `;
+            });
         }
 
-        notaMap[item.idTransaksi]
-            .produk.push(item.namaProduk);
-
-        notaMap[item.idTransaksi]
-            .total += Number(item.total);
-    });
-
-    Object.keys(notaMap).forEach(id=>{
-
-        const nota = notaMap[id];
-
-        tbody.innerHTML += `
-        <tr class="border-b">
-
-            <td class="p-3">
-                ${nota.waktu}
-            </td>
-
-            <td class="p-3 font-bold">
-                ${id}
-            </td>
-
-            <td class="p-3">
-                ${nota.produk.join(", ")}
-            </td>
-
-            <td class="p-3">
-                -
-            </td>
-
-            <td class="p-3 font-bold">
-                Rp ${nota.total.toLocaleString('id-ID')}
-            </td>
-
-            <td class="p-3">
-                <button
-                    onclick="pilihNota('${id}')"
-                    class="bg-maroon text-white px-3 py-1 rounded-xl">
-                    Pilih Nota
-                </button>
-            </td>
-
-        </tr>
-        `;
-    });
-}
-
+        // LOGIKA BARU UNTUK PILIH NOTA (RINCIAN MUNCUL SEMUA)
         function pilihNota(idNota){
+            const semuaItem = jurnalTransaksi.filter(x => x.idTransaksi === idNota);
+            if(semuaItem.length === 0) return;
 
-    const semuaItem =
-        jurnalTransaksi.filter(
-            x => x.idTransaksi === idNota
-        );
+            const pertama = semuaItem[0];
+            document.getElementById("notaWaktu").innerText = "Waktu: " + pertama.waktu;
+            document.getElementById("notaID").innerText = "Nota: " + pertama.idTransaksi;
+            document.getElementById("notaMetode").innerText = "Metode: " + pertama.metode;
 
-    if(semuaItem.length===0) return;
+            let html = "";
+            let total = 0;
 
-    const pertama = semuaItem[0];
-
-    document.getElementById("notaWaktu").innerText =
-        "Waktu: " + pertama.waktu;
-
-    document.getElementById("notaID").innerText =
-        "Nota: " + pertama.idTransaksi;
-
-    document.getElementById("notaMetode").innerText =
-        "Metode: " + pertama.metode;
-
-    let html = "";
-    let total = 0;
-
-    semuaItem.forEach(item=>{
-
-        total += Number(item.total);
-
-        html += `
-        <div class="grid grid-cols-12 py-1 text-[10px]">
-
-            <div class="col-span-6">
-                <div>${item.namaProduk}</div>
-                <div class="text-gray-400">
-                    @Rp ${Number(item.harga).toLocaleString('id-ID')}
-                </div>
-            </div>
-
-            <div class="col-span-2 text-center">
-                ${item.jumlah}
-            </div>
-
-            <div class="col-span-4 text-right">
-                Rp ${Number(item.total).toLocaleString('id-ID')}
-            </div>
-
-        </div>
-        `;
-    });
-
-    document.getElementById("notaItems").innerHTML =
-        html;
-
-    document.getElementById("notaTotal").innerText =
-        "Rp " + total.toLocaleString("id-ID");
-}
-        function siapkanNotaLama(idx) {
-            const t = jurnalTransaksi[idx];
-            dataNotaTerpilih = t;
-            
-            document.getElementById('notaWaktu').innerText = "Waktu: " + t.waktu;
-            document.getElementById('notaID').innerText = "Nota: " + t.idTransaksi;
-            document.getElementById('notaMetode').innerText = "Metode: " + t.metode;
-            document.getElementById('notaTotal').innerText = "Rp " + t.total.toLocaleString('id-ID');
-
-            const containerItems = document.getElementById('notaItems');
-            
-            // Langsung menyisipkan nama teks produk mentah tanpa takut object crash
-            containerItems.innerHTML = `
-                <div class="grid grid-cols-12 text-[10px] text-slate-800 py-1">
-                    <div class="col-span-6 flex flex-col">
-                        <span class="font-medium text-slate-900">${t.namaProduk}</span>
-                        <span class="text-[9px] text-gray-400">@Rp ${t.harga.toLocaleString('id-ID')}</span>
+            semuaItem.forEach(item => {
+                total += Number(item.total);
+                html += `
+                <div class="grid grid-cols-12 py-1 text-[10px] text-slate-800 border-b border-gray-50">
+                    <div class="col-span-6">
+                        <div class="font-medium">${item.namaProduk}</div>
+                        <div class="text-gray-400">@Rp ${Number(item.harga).toLocaleString('id-ID')}</div>
                     </div>
-                    <span class="col-span-2 text-center my-auto font-medium">${t.jumlah}</span>
-                    <span class="col-span-4 text-right my-auto font-semibold text-slate-900">Rp ${t.total.toLocaleString('id-ID')}</span>
+                    <div class="col-span-2 text-center my-auto">${item.jumlah}</div>
+                    <div class="col-span-4 text-right my-auto font-semibold">Rp ${Number(item.total).toLocaleString('id-ID')}</div>
                 </div>
-            `;
+                `;
+            });
 
+            document.getElementById("notaItems").innerHTML = html;
+            document.getElementById("notaTotal").innerText = "Rp " + total.toLocaleString("id-ID");
             document.getElementById('areaNotaCetak').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // FUNGSI UNTUK MENGISI DASHBOARD / GRAFIK PENJUALAN SEDERHANA
+        function hitungStatistikPenjualan() {
+            let totalOmset = 0;
+            let totalQty = 0;
+            const setNota = new Set();
+            const produkTerlarisMap = {};
+
+            jurnalTransaksi.forEach(item => {
+                totalOmset += Number(item.total);
+                totalQty += Number(item.jumlah);
+                setNota.add(item.idTransaksi);
+
+                if(!produkTerlarisMap[item.namaProduk]) produkTerlarisMap[item.namaProduk] = 0;
+                produkTerlarisMap[item.namaProduk] += Number(item.jumlah);
+            });
+
+            document.getElementById('statOmset').innerText = "Rp " + totalOmset.toLocaleString('id-ID');
+            document.getElementById('statNota').innerText = setNota.size;
+            document.getElementById('statQty').innerText = totalQty + " Item";
+
+            // Sorting Produk Terlaris
+            const sortedProduk = Object.keys(produkTerlarisMap).map(key => {
+                return { nama: key, qty: produkTerlarisMap[key] };
+            }).sort((a,b) => b.qty - a.qty);
+
+            const containerTerlaris = document.getElementById('listProdukTerlaris');
+            if(sortedProduk.length === 0) {
+                containerTerlaris.innerHTML = `<p class="text-gray-400 italic">Belum ada transaksi.</p>`;
+                return;
+            }
+
+            containerTerlaris.innerHTML = "";
+            sortedProduk.slice(0, 5).forEach((p, index) => {
+                containerTerlaris.innerHTML += `
+                    <div class="flex justify-between items-center bg-white p-2.5 rounded-lg border">
+                        <span><strong>#${index + 1}</strong> ${p.nama}</span>
+                        <span class="bg-maroon text-white px-2 py-0.5 rounded-md font-bold">${p.qty} Terjual</span>
+                    </div>
+                `;
+            });
         }
 
         function masukkanKeranjang(nama) {
@@ -459,8 +449,10 @@
         function pindahHalaman(id) {
             document.getElementById('page-home').classList.add('hidden');
             document.getElementById('page-riwayat').classList.add('hidden');
+            document.getElementById('page-penjualan').classList.add('hidden');
+            
             document.getElementById('page-' + id).classList.remove('hidden');
-            if(id === 'riwayat' || id === 'home') ambilStokProdukSpreadsheet();
+            if(id === 'riwayat' || id === 'home' || id === 'penjualan') ambilStokProdukSpreadsheet();
             toggleSidebar();
         }
 
